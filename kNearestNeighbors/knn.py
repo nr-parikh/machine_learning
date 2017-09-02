@@ -121,8 +121,14 @@ class Knearest:
         # function for each example.
 
         d = defaultdict(dict)
+        for xx in range(10):
+            for yy in range(10):
+                d[xx][yy]=0
+
         data_index = 0
         for xx, yy in zip(test_x, test_y):
+            predicted = self.classify(xx)    
+            d[yy][predicted] += 1
             data_index += 1
             if data_index % 100 == 0:
                 print("%i/%i for confusion matrix" % (data_index, len(test_x)))
