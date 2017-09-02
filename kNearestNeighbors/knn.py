@@ -59,9 +59,7 @@ class Knearest:
         assert len(item_indices) == self._k, "Did not get k inputs"
 
         counter = Counter(item_indices)
-        label = [(key, val) for key,val in counter.items() if val == max(counter.values())]
-        
-
+        indices = [(key, val) for key,val in counter.items() if val == max(counter.values())]
         # Finish this function to return the most common y value for
         # these indices
         #
@@ -69,15 +67,21 @@ class Knearest:
 
         # return self._y[item_indices[0]]
 
-        if len(label)>1:
-            list(chain.from_iterable(label))
-            label.sort()
-            if len(label)%2==0:
-                return (label[(len(label)-1)/2]+label[len(label)/2])/2
+        if len(indices)>1:
+            indices = [[key]* val for (key, val) in indices]
+            indices = sum(indices, [])
+            # print(indices)
+            if len(indices)%2==0:
+                label = numpy.take(self._y, indices)
+                label.sort()
+                return (int(label[int((len(label)-1)/2)]+label[int(len(label)/2)]/2))
             else:
-                return label[(len(label)-1)/2]
+                label = numpy.take(self._y, indices)
+                label.sort()
+                return label[int((len(indices)-1)/2)]
 
-        return label[0][0]
+        # print(indices[0][0])
+        return self._y[indices[0][0]]
 
     def classify(self, example):
         """
@@ -90,12 +94,15 @@ class Knearest:
         # Finish this function to find the k closest points, query the
         # majority function, and return the value.
 
-        print (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        _, self._ind = self._kdtree.query([example], k=self._k)
 
-        _, self._ind = self._kdtree.query(example, k=self._k)
-        
+        self._ind = self._ind.tolist()
+        self._ind = sum(self._ind, [])
+
         # return self.majority(list(random.randrange(len(self._y)) \
                                   # for x in range(self._k)))
+        # index = self.majority(self._ind)
+        # return self._y[index]
         return self.majority(self._ind)
 
     def confusion_matrix(self, test_x, test_y):
