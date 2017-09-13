@@ -13,12 +13,12 @@ class Numbers:
     """
 
     def __init__(self, location):
-        # You shouldn't have to modify this class, but you can if
-        # you'd like.
+
+        #Open the file and load the data as soon as the object of the
+        #class is created
 
         import pickle, gzip
 
-        # Load the dataset
         f = gzip.open(location, 'rb')
         train_set, valid_set, test_set = pickle.load(f) 
 
@@ -29,7 +29,7 @@ class Numbers:
 
 class Knearest:
     """
-    kNN classifier
+    kNN classifier class
     """
 
     def __init__(self, x, y, k=5):
@@ -41,10 +41,6 @@ class Knearest:
         :param k: The number of nearest points to consider in classification
         """
 
-        # You can modify the constructor, but you shouldn't need to.
-        # Do not use another datastructure from anywhere else to
-        # complete the assignment.
-
         self._kdtree = BallTree(x)
         self._y = y
         self._k = k
@@ -54,33 +50,35 @@ class Knearest:
         Given the indices of training examples, return the majority label.  If
         there's a tie, return the median value (as implemented in numpy).
 
-        :param item_indices: The indices of the k nearest neighbors
+        :param item_indices: The indices of the k nearest neighbors to the 
+        queried data point 
         """
         assert len(item_indices) == self._k, "Did not get k inputs"
 
-        counter = Counter(item_indices)
+        #Use the counter object to count the frequency of the data 
+        counter = Counter(item_indices) 
+
+        #Find the indices with the highest frequency
         indices = [(key, val) for key,val in counter.items() if val == max(counter.values())]
-        # Finish this function to return the most common y value for
-        # these indices
-        #
-        # http://docs.scipy.org/doc/numpy/reference/generated/numpy.median.html
 
-        # return self._y[item_indices[0]]
-
+        #If there is tie in the frequency take the median value of the 
+        #labels of the tied indices
         if len(indices)>1:
             indices = [[key]* val for (key, val) in indices]
             indices = sum(indices, [])
-            # print(indices)
+
+            #Check if the number of indices is odd or even 
             if len(indices)%2==0:
                 label = numpy.take(self._y, indices)
                 label.sort()
+                #return the median value of label 
                 return (int(label[int((len(label)-1)/2)]+label[int(len(label)/2)]/2))
             else:
                 label = numpy.take(self._y, indices)
                 label.sort()
+                #return the middle value 
                 return label[int((len(indices)-1)/2)]
 
-        # print(indices[0][0])
         return self._y[indices[0][0]]
 
     def classify(self, example):
@@ -91,18 +89,11 @@ class Knearest:
         format as training data
         """
 
-        # Finish this function to find the k closest points, query the
-        # majority function, and return the value.
-
         _, self._ind = self._kdtree.query([example], k=self._k)
 
         self._ind = self._ind.tolist()
         self._ind = sum(self._ind, [])
 
-        # return self.majority(list(random.randrange(len(self._y)) \
-                                  # for x in range(self._k)))
-        # index = self.majority(self._ind)
-        # return self._y[index]
         return self.majority(self._ind)
 
     def confusion_matrix(self, test_x, test_y):
@@ -116,10 +107,7 @@ class Knearest:
         :param test_y: Test data answers
         """
 
-        # Finish this function to build a dictionary with the
-        # mislabeled examples.  You'll need to call the classify
-        # function for each example.
-
+        #Create an empty dictionary of dictionary and initialize it to 0
         d = defaultdict(dict)
         for xx in range(10):
             for yy in range(10):
@@ -127,7 +115,9 @@ class Knearest:
 
         data_index = 0
         for xx, yy in zip(test_x, test_y):
-            predicted = self.classify(xx)    
+            #classify the test example 
+            predicted = self.classify(xx)
+            #populate the dictionary     
             d[yy][predicted] += 1
             data_index += 1
             if data_index % 100 == 0:
@@ -139,8 +129,6 @@ class Knearest:
         """
         Given a confusion matrix, compute the accuracy of the underlying classifier.
         """
-
-        # You do not need to modify this function
 
         total = 0
         correct = 0
@@ -163,8 +151,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data = Numbers("data/mnist.pkl.gz")
-
-    # You should not have to modify any of this code
 
     if args.limit > 0:
         print("Data limit: %i" % args.limit)

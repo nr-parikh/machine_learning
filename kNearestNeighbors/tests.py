@@ -4,6 +4,9 @@ from numpy import array
 
 from knn import *
 
+#Test cases to test the implemented KNN algorithm before testing it on the 
+#on the actual data. 
+
 class TestKnn(unittest.TestCase):
     def setUp(self):
         self.x = array([[2, 0], [4, 1], [6, 0], [1, 4], [2, 4], [2, 5], [4, 4],
