@@ -30,6 +30,7 @@ class Example:
     """
     Class to represent a logistic regression example
     """
+
     def __init__(self, label, words, vocab, df):
         """
         Create a new example
@@ -47,6 +48,7 @@ class Example:
                 self.x[vocab.index(word)] += float(count)
                 self.nonzero[vocab.index(word)] = word
         self.x[0] = 1
+        self.df = df
 
 
 class LogReg:
@@ -105,13 +107,17 @@ class LogReg:
         :return: Return the new value of the regression coefficients
         """
         pi = sigmoid(numpy.dot(self.beta, train_example.x))
-        self.beta = self.beta * ((1 - 2 * self.step(iteration) * self.mu)) + self.step(iteration) * (train_example.y - pi) * train_example.x
+        self.beta = self.step(iteration) * \
+            (train_example.y - pi) * train_example.x + \
+            self.beta * ((1 - 2 * self.step(iteration) * self.mu))
         if lazy == True:
-	        indices = numpy.nonzero(train_example.x != 0)
-	        if len(indices)>0:
-	        	numpy.put(self.last_update, indices, [iteration * len(indices)])        
-        # elif self.mu > 0:
-
+            for idx, val in enumerate(train_example.x):
+                if val == 0:
+                    self.last_update[idx] += 1
+            self.finalize_lazy(iteration)
+            for idx, val in enumerate(train_example.x):
+                if val != 0:
+                    self.last_update[idx] = iteration
 
         return self.beta
 
@@ -122,13 +128,11 @@ class LogReg:
 
         Only implement this function if you do the extra credit.
         """
-        if self.mu > 0:
-            from numpy import ones
-            shrinkage = ones(self.dimension)
-            shrinkage *= (1 - 2 * self.mu * self.step(iteration))
-            print ("iteration - update", (iteration - self.last_update))
-            self.beta *= shrinkage ** (iteration - self.last_update)
-        return self.beta
+        from numpy import ones
+        shrinkage = ones(self.dimension)
+        shrinkage *= (1 - 2 * self.mu * self.step(iteration))
+        self.beta *= shrinkage ** (iteration - self.last_update)
+
 
 def read_dataset(positive, negative, vocab, test_proportion=.1):
     """
@@ -159,6 +163,7 @@ def read_dataset(positive, negative, vocab, test_proportion=.1):
     random.shuffle(test)
 
     return train, test, vocab
+
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -220,5 +225,7 @@ if __name__ == "__main__":
 
     best_feature = numpy.argmax(lr.beta)
     worst_feature = numpy.argmin(lr.beta)
-    print ("Best feature \"", vocab[best_feature], "\" has weight ", lr.beta[best_feature])
-    print ("Worst feature \"", vocab[worst_feature], "\" has weight ", lr.beta[worst_feature])
+    print ("Best feature \"", vocab[best_feature],
+           "\" has weight ", lr.beta[best_feature])
+    print ("Worst feature \"", vocab[worst_feature],
+           "\" has weight ", lr.beta[worst_feature])
