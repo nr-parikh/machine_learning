@@ -1,11 +1,12 @@
 import unittest
 
-from logreg import LogReg, Example
+from logreg_normal import LogReg, Example
 from numpy import zeros
 
 kTOY_VOCAB = "BIAS_CONSTANT A B C D".split()
 kPOS = Example(1, "A:4 B:3 C:1".split(), kTOY_VOCAB, None)
 kNEG = Example(0, "B:1 C:3 D:4".split(), kTOY_VOCAB, None)
+
 
 class TestKnn(unittest.TestCase):
     def setUp(self):
@@ -34,13 +35,11 @@ class TestKnn(unittest.TestCase):
         print("Finalize")
         print(self.logreg_reg.last_update)
         beta = self.logreg_reg.finalize_lazy(2)
-        print("returned beta", beta)
         self.assertAlmostEqual(beta[0], -0.72068776924864364)
         self.assertAlmostEqual(beta[1], 1.0)
         self.assertAlmostEqual(beta[2], -0.22068776924864364)
         self.assertAlmostEqual(beta[3], -2.6620633077459308)
         self.assertAlmostEqual(beta[4], -3.8827510769945746)
-
 
     def test_unreg(self):
         print(self.logreg_unreg.beta)
@@ -60,6 +59,7 @@ class TestKnn(unittest.TestCase):
         self.assertAlmostEqual(beta[2], 0.5293122307513564)
         self.assertAlmostEqual(beta[3], -2.4120633077459308)
         self.assertAlmostEqual(beta[4], -3.8827510769945746)
+
 
 if __name__ == '__main__':
     unittest.main()

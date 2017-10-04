@@ -3,8 +3,8 @@ import numpy
 from numpy import zeros, sign
 from math import exp, log
 from collections import defaultdict
-
 import argparse
+from scipy.linalg import norm
 
 kSEED = 1701
 kBIAS = "BIAS_CONSTANT"
@@ -106,18 +106,27 @@ class LogReg:
 
         :return: Return the new value of the regression coefficients
         """
-        pi = sigmoid(numpy.dot(self.beta, train_example.x))
-        self.beta = self.step(iteration) * \
-            (train_example.y - pi) * train_example.x + \
-            self.beta * ((1 - 2 * self.step(iteration) * self.mu))
-        if lazy == True:
-            for idx, val in enumerate(train_example.x):
+        features = train_example.x
+
+        if use_tfidf:
+            features = self.get_tfidf(train_example)
+
+        if lazy:
+            for idx, val in enumerate(features):
                 if val == 0:
                     self.last_update[idx] += 1
             self.finalize_lazy(iteration)
-            for idx, val in enumerate(train_example.x):
+            pi = sigmoid(numpy.dot(self.beta.transpose(), features))
+            self.beta = self.beta + self.step(iteration) * \
+                (train_example.y - pi) * train_example.x
+            for idx, val in enumerate(features):
                 if val != 0:
                     self.last_update[idx] = iteration
+        else:
+            pi = sigmoid(numpy.dot(self.beta.transpose(), train_example.x))
+            self.beta = self.step(iteration) * \
+                (train_example.y - pi) * features + \
+                self.beta * ((1 - 2 * self.step(iteration) * self.mu))
 
         return self.beta
 
@@ -128,10 +137,25 @@ class LogReg:
 
         Only implement this function if you do the extra credit.
         """
-        from numpy import ones
-        shrinkage = ones(self.dimension)
-        shrinkage *= (1 - 2 * self.mu * self.step(iteration))
-        self.beta *= shrinkage ** (iteration - self.last_update)
+        if self.mu > 0:
+            from numpy import ones
+            shrinkage = ones(self.dimension)
+            shrinkage *= (1 - 2 * self.mu * self.step(iteration))
+            self.beta *= shrinkage ** (iteration - self.last_update)
+        return self.beta
+
+    def get_tfidf(self, train_example):
+        total_words = sum(train_example.x)
+        term_freq = zeros(len(train_example.x))
+        tfidf = numpy.ones(len(train_example.x))
+
+        for idx in range(len(train_example.x)):
+            term_freq = train_example.x[idx] / total_words
+            if train_example.df[idx] != 0:
+                tfidf[idx] = term_freq * numpy.log(
+                    (1064 + 113) / (1 + train_example.df[idx]))
+
+        return tfidf / norm(tfidf)
 
 
 def read_dataset(positive, negative, vocab, test_proportion=.1):
@@ -171,22 +195,17 @@ if __name__ == "__main__":
                            type=float, default=0.0, required=False)
     argparser.add_argument("--step", help="Initial SG step size",
                            type=float, default=0.1, required=False)
-    # argparser.add_argument("--positive", help="Positive class",
-    #                        type=str, default="../data/hockey_baseball/positive", required=False)
-    # argparser.add_argument("--negative", help="Negative class",
-    #                        type=str, default="../data/hockey_baseball/negative", required=False)
-    # argparser.add_argument("--vocab", help="Vocabulary that can be features",
-    #                        type=str, default="../data/hockey_baseball/vocab", required=False)
-    argparser.add_argument("--passes", help="Number of passes through train",
-                           type=int, default=1, required=False)
-    argparser.add_argument("--ec", help="Extra credit option (df, lazy, or rate)",
-                           type=str, default="")
     argparser.add_argument("--positive", help="Positive class",
                            type=str, default="data/positive", required=False)
     argparser.add_argument("--negative", help="Negative class",
                            type=str, default="data/negative", required=False)
     argparser.add_argument("--vocab", help="Vocabulary that can be features",
                            type=str, default="data/vocab", required=False)
+    argparser.add_argument("--passes", help="Number of passes through train",
+                           type=int, default=1, required=False)
+    argparser.add_argument("--ec", help="Extra credit option (df, lazy, or rate)",
+                           type=str, default="")
+
     args = argparser.parse_args()
     train, test, vocab = read_dataset(args.positive, args.negative, args.vocab)
 
@@ -197,9 +216,12 @@ if __name__ == "__main__":
         lr = LogReg(len(vocab), args.mu, lambda x: args.step)
     else:
         # Modify this code if you do learning rate extra credit
-        raise NotImplementedError
+        decay = args.step / (len(train) * args.passes)
+        lr = LogReg(len(vocab), args.mu, lambda iter: 1 /
+                    (1 + iter * decay))
+        # raise NotImplementedError
 
-    # Iterations
+        # Iterations
     update_number = 0
     for pp in range(args.passes):
         for ii in train:
@@ -223,9 +245,11 @@ if __name__ == "__main__":
     print("Update %i\tTP %f\tHP %f\tTA %f\tHA %f" %
           (update_number, train_lp, ho_lp, train_acc, ho_acc))
 
-    best_feature = numpy.argmax(lr.beta)
-    worst_feature = numpy.argmin(lr.beta)
-    print ("Best feature \"", vocab[best_feature],
-           "\" has weight ", lr.beta[best_feature])
-    print ("Worst feature \"", vocab[worst_feature],
-           "\" has weight ", lr.beta[worst_feature])
+    best_feature = lr.beta.argsort()[:-11:-1]
+    print ("The best features for positive class are:")
+    print(numpy.take(vocab, best_feature))
+    worst_feature = lr.beta.argsort()[:10]
+    print ("The best features for negative class are:")
+    print(numpy.take(vocab, worst_feature))
+    print ("The poorest features are:")
+    print(numpy.take(vocab, numpy.nonzero(lr.beta == 0)))
