@@ -2,8 +2,11 @@ from random import randint, seed
 from collections import defaultdict
 from math import atan, sin, cos, pi
 
+import numpy as np
 from numpy import array
 from numpy.linalg import norm
+
+from itertools import combinations
 
 from bst import BST
 
@@ -28,7 +31,10 @@ class Classifier:
         assert all(x == 1 or x == -1 for x in labels), "Labels must be binary"
 
         # TODO: implement this function
-        return 0.0
+
+        predicted = [1 if(self.classify(d)) else -1 for d in data]
+
+        return float(np.dot(predicted, labels)) / float(len(data))
 
 
 class PlaneHypothesis(Classifier):
@@ -64,6 +70,7 @@ class OriginPlaneHypothesis(PlaneHypothesis):
     A class that represents a decision boundary that must pass through the
     origin.
     """
+
     def __init__(self, x, y):
         """
         Create a decision boundary by specifying the normal vector to the
@@ -82,6 +89,7 @@ class AxisAlignedRectangle(Classifier):
     (inclusive of the boundary) is positive and everything else is negative.
 
     """
+
     def __init__(self, start_x, start_y, end_x, end_y):
         """
 
@@ -154,8 +162,45 @@ def origin_plane_hypotheses(dataset):
     """
 
     # TODO: Complete this function
+    # print(dataset)
+    copyDataset = np.array(dataset)
 
-    yield OriginPlaneHypothesis(1.0, 0.0)
+    theta = np.multiply(np.arctan2(
+        copyDataset[:, 1], copyDataset[:, 0]), 180 / np.pi)
+
+    theta.sort()
+
+    hypothesesTheta = list()
+
+    # if theta[0] != 0:
+    # hypothesesTheta.append(theta[0] - np.spacing(np.single(1)))
+
+    for idx in range(len(theta) - 1):
+
+        if (theta[idx] != theta[idx + 1]):
+            meanTheta = (theta[idx] + theta[idx + 1]) / 2
+
+            hypothesesTheta.append(meanTheta)
+
+    hypothesesTheta.append(theta[-1] + np.spacing(np.single(1)))
+
+    hypotheses = np.zeros((len(2 * hypothesesTheta), 2))
+    idx1 = 0
+    for idx2, theta in enumerate(hypothesesTheta, 0):
+        # hypotheses[idx1][0] = -np.cos(hypothesesTheta[idx2])
+        # hypotheses[idx1][1] = np.sin(hypothesesTheta[idx2])
+        # hypotheses[idx1 + 1][0] = np.cos(hypothesesTheta[idx2])
+        # hypotheses[idx1 + 1][1] = -np.sin(hypothesesTheta[idx2])
+        hypotheses[idx1][0] = -1
+        hypotheses[idx1][1] = np.tan(hypothesesTheta[idx2])
+        hypotheses[idx1 + 1][0] = 1
+        hypotheses[idx1 + 1][1] = -np.tan(hypothesesTheta[idx2])
+
+        idx1 += 2
+
+    for h in hypotheses:
+        yield OriginPlaneHypothesis(h[0], h[1])
+
 
 def plane_hypotheses(dataset):
     """
@@ -186,8 +231,33 @@ def axis_aligned_hypotheses(dataset):
       dataset: The dataset to use to generate hypotheses
     """
 
-    # TODO: complete this function
-    yield AxisAlignedRectangle(0, 0, 0, 0)
+    # DONE
+
+    yield AxisAlignedRectangle(float('inf'), float('inf'), float('inf'), float('inf'))
+
+    hypotheses = list()
+
+    allNegH = np.amin(np.array(dataset), axis=0)
+
+    for numPoints in range(1, len(dataset) + 1):
+
+        hypothesesCombinations = combinations(dataset, numPoints)
+        for h in hypothesesCombinations:
+            xMin, xMax = min(h, key=lambda x: x[0])[
+                0], max(h, key=lambda x: x[0])[0]
+            yMin, yMax = min(h, key=lambda x: x[1])[
+                1], max(h, key=lambda x: x[1])[1]
+
+            hypothesis = AxisAlignedRectangle(xMin, yMin, xMax, yMax)
+
+            classifiedPts = [hypothesis.classify(pt) for pt in dataset]
+
+            if sum(classifiedPts) == numPoints:
+                # if hypothesis not in hypotheses:
+                hypotheses.append(hypothesis)
+
+    for h in hypotheses:
+        yield h
 
 
 def coin_tosses(number, random_seed=0):
@@ -221,14 +291,27 @@ def rademacher_estimate(dataset, hypothesis_generator, num_samples=500,
       correlation
     """
 
-    for ii in range(num_samples):
-        if random_seed != 0:
-            rademacher = coin_tosses(len(dataset), random_seed + ii)
+    maxes = []
+    for i in range(num_samples):
+        correlations = []
+        if i == 0:
+            sigma = coin_tosses(len(dataset), random_seed)
         else:
-            rademacher = coin_tosses(len(dataset))
+            sigma = coin_tosses(len(dataset))
+        for kk in hypothesis_generator(dataset):
+            correlations.append(kk.correlation(dataset, sigma))
+        maxes.append(max(correlations))
+    return sum(maxes) / len(maxes)
 
-        # TODO: complete this function
+    # for ii in range(num_samples):
+    #     if random_seed != 0:
+    #         rademacher = coin_tosses(len(dataset), random_seed + ii)
+    #     else:
+    #         rademacher = coin_tosses(len(dataset))
+
+    # TODO: complete this function
     return 0.0
+
 
 if __name__ == "__main__":
     print("Rademacher correlation of constant classifier %f" %
