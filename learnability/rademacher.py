@@ -1,12 +1,15 @@
+# One extra day used for the extra credit in this assignment. Remaining extra days is 4
+
 from random import randint, seed
 from collections import defaultdict
-from math import atan, sin, cos, pi
+from math import atan, sin, cos, pi, sqrt
 
 import numpy as np
 from numpy import array
 from numpy.linalg import norm
 
 from itertools import combinations
+from sklearn.neighbors import KDTree
 
 from bst import BST
 
@@ -30,7 +33,7 @@ class Classifier:
 
         assert all(x == 1 or x == -1 for x in labels), "Labels must be binary"
 
-        # TODO: implement this function
+        # DONE
 
         predicted = [1 if(self.classify(d)) else -1 for d in data]
 
@@ -161,8 +164,8 @@ def origin_plane_hypotheses(dataset):
 
     """
 
-    # TODO: Complete this function
-    # print(dataset)
+    # DONE
+
     copyDataset = np.array(dataset)
 
     theta = np.multiply(np.arctan2(
@@ -171,9 +174,6 @@ def origin_plane_hypotheses(dataset):
     theta.sort()
 
     hypothesesTheta = list()
-
-    # if theta[0] != 0:
-    # hypothesesTheta.append(theta[0] - np.spacing(np.single(1)))
 
     for idx in range(len(theta) - 1):
 
@@ -187,10 +187,7 @@ def origin_plane_hypotheses(dataset):
     hypotheses = np.zeros((len(2 * hypothesesTheta), 2))
     idx1 = 0
     for idx2, theta in enumerate(hypothesesTheta, 0):
-        # hypotheses[idx1][0] = -np.cos(hypothesesTheta[idx2])
-        # hypotheses[idx1][1] = np.sin(hypothesesTheta[idx2])
-        # hypotheses[idx1 + 1][0] = np.cos(hypothesesTheta[idx2])
-        # hypotheses[idx1 + 1][1] = -np.sin(hypothesesTheta[idx2])
+
         hypotheses[idx1][0] = -1
         hypotheses[idx1][1] = np.tan(hypothesesTheta[idx2])
         hypotheses[idx1 + 1][0] = 1
@@ -216,7 +213,35 @@ def plane_hypotheses(dataset):
 
     """
 
-    # Complete this for extra credit
+    # Done
+
+    copyDataset = np.array(dataset)
+
+    while len(copyDataset) != 1:
+
+        origin = copyDataset[0, :]
+
+        newData = np.array(dataset)[:len(copyDataset)] - \
+            np.array([origin] * len(copyDataset))
+
+        theta = np.multiply(np.arctan2(
+            newData[:, 1], newData[:, 0]), 180 / np.pi)
+
+        np.unique(theta)
+
+        meanTheta = [(theta[idx] + theta[idx + 1]) /
+                     2 for idx in range(len(theta) - 1)]
+
+        meanTheta.append(theta[-1] + np.spacing(np.single(1)))
+
+        for theta in meanTheta:
+            hypothesis = [[-np.tan(theta), 1, origin[0] * np.tan(theta) - origin[1]],
+                          [np.tan(theta), -1, origin[1] - origin[0] * np.tan(theta)]]
+            for h in hypothesis:
+                yield PlaneHypothesis(h[0], h[1], h[2])
+
+        copyDataset = np.delete(copyDataset, 0, 0)
+
     return
 
 
@@ -233,11 +258,16 @@ def axis_aligned_hypotheses(dataset):
 
     # DONE
 
+    xTree = BST()
+    yTree = BST()
+
+    for pts in dataset:
+        xTree.insert(pts)
+        yTree.insert((pts[1], pts[0]))
+
     yield AxisAlignedRectangle(float('inf'), float('inf'), float('inf'), float('inf'))
 
     hypotheses = list()
-
-    allNegH = np.amin(np.array(dataset), axis=0)
 
     for numPoints in range(1, len(dataset) + 1):
 
@@ -248,13 +278,14 @@ def axis_aligned_hypotheses(dataset):
             yMin, yMax = min(h, key=lambda x: x[1])[
                 1], max(h, key=lambda x: x[1])[1]
 
-            hypothesis = AxisAlignedRectangle(xMin, yMin, xMax, yMax)
+            rangeX = [x.key for x in xTree.range((xMin, yMin), (xMax, yMax))]
+            rangeY = [(y.key[1], y.key[0])
+                      for y in yTree.range((yMin, xMin), (yMax, xMax))]
 
-            classifiedPts = [hypothesis.classify(pt) for pt in dataset]
-
-            if sum(classifiedPts) == numPoints:
-                # if hypothesis not in hypotheses:
-                hypotheses.append(hypothesis)
+            if len(set(rangeX) & set(rangeY)) == numPoints:
+                if AxisAlignedRectangle(xMin, yMin, xMax, yMax) not in hypotheses:
+                    hypotheses.append(
+                        AxisAlignedRectangle(xMin, yMin, xMax, yMax))
 
     for h in hypotheses:
         yield h
@@ -291,26 +322,18 @@ def rademacher_estimate(dataset, hypothesis_generator, num_samples=500,
       correlation
     """
 
-    maxes = []
-    for i in range(num_samples):
-        correlations = []
-        if i == 0:
-            sigma = coin_tosses(len(dataset), random_seed)
+    total = list()
+
+    for ii in range(num_samples):
+        if random_seed != 0:
+            rademacher = coin_tosses(len(dataset), random_seed + ii)
         else:
-            sigma = coin_tosses(len(dataset))
-        for kk in hypothesis_generator(dataset):
-            correlations.append(kk.correlation(dataset, sigma))
-        maxes.append(max(correlations))
-    return sum(maxes) / len(maxes)
+            rademacher = coin_tosses(len(dataset))
 
-    # for ii in range(num_samples):
-    #     if random_seed != 0:
-    #         rademacher = coin_tosses(len(dataset), random_seed + ii)
-    #     else:
-    #         rademacher = coin_tosses(len(dataset))
+        total.append(max([h.correlation(dataset, rademacher)
+                          for h in list(hypothesis_generator(dataset))]))
 
-    # TODO: complete this function
-    return 0.0
+    return sum(total) / num_samples
 
 
 if __name__ == "__main__":
@@ -318,5 +341,7 @@ if __name__ == "__main__":
           rademacher_estimate(kSIMPLE_DATA, constant_hypotheses))
     print("Rademacher correlation of rectangle classifier %f" %
           rademacher_estimate(kSIMPLE_DATA, axis_aligned_hypotheses))
-    print("Rademacher correlation of plane classifier %f" %
+    print("Rademacher correlation of origin centered plane classifier %f" %
           rademacher_estimate(kSIMPLE_DATA, origin_plane_hypotheses))
+    print("Rademacher correlation of arbitrary plane classifier %f" %
+          rademacher_estimate(kSIMPLE_DATA, plane_hypotheses))

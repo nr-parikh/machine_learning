@@ -62,7 +62,8 @@ def train_sin_classifier(data):
     assert all(isinstance(x[1], bool) for x in data), \
         "All labels must be True / False"
 
-    # TODO: Compute a frequency that will correctly classify the dataset
+    # DONE
+
     copyDataset = np.array(data)
 
     x = 2.**copyDataset[:, 0]
