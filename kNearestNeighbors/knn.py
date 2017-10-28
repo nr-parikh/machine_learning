@@ -7,6 +7,7 @@ from numpy import median
 from sklearn.neighbors import BallTree
 from itertools import chain
 
+
 class Numbers:
     """
     Class to store MNIST data
@@ -14,13 +15,14 @@ class Numbers:
 
     def __init__(self, location):
 
-        #Open the file and load the data as soon as the object of the
-        #class is created
+        # Open the file and load the data as soon as the object of the
+        # class is created
 
-        import pickle, gzip
+        import pickle
+        import gzip
 
         f = gzip.open(location, 'rb')
-        train_set, valid_set, test_set = pickle.load(f) 
+        train_set, valid_set, test_set = pickle.load(f)
 
         self.train_x, self.train_y = train_set
         self.test_x, self.test_y = valid_set
@@ -55,29 +57,30 @@ class Knearest:
         """
         assert len(item_indices) == self._k, "Did not get k inputs"
 
-        #Use the counter object to count the frequency of the data 
-        counter = Counter(item_indices) 
+        # Use the counter object to count the frequency of the data
+        counter = Counter(item_indices)
 
-        #Find the indices with the highest frequency
-        indices = [(key, val) for key,val in counter.items() if val == max(counter.values())]
+        # Find the indices with the highest frequency
+        indices = [(key, val) for key, val in counter.items()
+                   if val == max(counter.values())]
 
-        #If there is tie in the frequency take the median value of the 
-        #labels of the tied indices
-        if len(indices)>1:
-            indices = [[key]* val for (key, val) in indices]
+        # If there is tie in the frequency take the median value of the
+        # labels of the tied indices
+        if len(indices) > 1:
+            indices = [[key] * val for (key, val) in indices]
             indices = sum(indices, [])
 
-            #Check if the number of indices is odd or even 
-            if len(indices)%2==0:
+            # Check if the number of indices is odd or even
+            if len(indices) % 2 == 0:
                 label = numpy.take(self._y, indices)
                 label.sort()
-                #return the median value of label 
-                return (int(label[int((len(label)-1)/2)]+label[int(len(label)/2)]/2))
+                # return the median value of label
+                return (int(label[int((len(label) - 1) / 2)] + label[int(len(label) / 2)] / 2))
             else:
                 label = numpy.take(self._y, indices)
                 label.sort()
-                #return the middle value 
-                return label[int((len(indices)-1)/2)]
+                # return the middle value
+                return label[int((len(indices) - 1) / 2)]
 
         return self._y[indices[0][0]]
 
@@ -107,17 +110,17 @@ class Knearest:
         :param test_y: Test data answers
         """
 
-        #Create an empty dictionary of dictionary and initialize it to 0
+        # Create an empty dictionary of dictionary and initialize it to 0
         d = defaultdict(dict)
         for xx in range(10):
             for yy in range(10):
-                d[xx][yy]=0
+                d[xx][yy] = 0
 
         data_index = 0
         for xx, yy in zip(test_x, test_y):
-            #classify the test example 
+            # classify the test example
             predicted = self.classify(xx)
-            #populate the dictionary     
+            # populate the dictionary
             d[yy][predicted] += 1
             data_index += 1
             if data_index % 100 == 0:
